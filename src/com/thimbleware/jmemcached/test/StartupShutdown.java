@@ -41,12 +41,12 @@ public class StartupShutdown {
     
 	@Test
 	public void upAndDown() {
-        daemon = getDaemon(50);
+        daemon = getDaemon(800);
         
         try {
         	daemon.start();
         } catch (Exception e) {
-        	fail("Daemon failed to start");
+        	fail("Daemon failed to start: " + e.getMessage());
         	return;
         }
         
