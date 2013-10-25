@@ -1,31 +1,31 @@
 package com.thimbleware.jmemcached.test;
 
-import java.io.IOException;
+import static org.junit.Assert.*;
+
 import java.net.InetSocketAddress;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.junit.Test;
+import org.omg.PortableInterceptor.SUCCESSFUL;
 
-import com.thimbleware.jmemcached.Cache;
 import com.thimbleware.jmemcached.CacheImpl;
 import com.thimbleware.jmemcached.Key;
 import com.thimbleware.jmemcached.LocalCacheElement;
 import com.thimbleware.jmemcached.MemCacheDaemon;
 import com.thimbleware.jmemcached.storage.CacheStorage;
-import com.thimbleware.jmemcached.storage.bytebuffer.BlockStorageCacheStorage;
-import com.thimbleware.jmemcached.storage.bytebuffer.ByteBufferBlockStore;
 import com.thimbleware.jmemcached.storage.hash.ConcurrentLinkedHashMap;
-import com.thimbleware.jmemcached.storage.mmap.MemoryMappedBlockStore;
-import com.thimbleware.jmemcached.test.AbstractCacheTest.ProtocolMode;
 import com.thimbleware.jmemcached.util.Bytes;
 
-public class QuickTest {
+public class StartupShutdown {
+
     protected static final int MAX_BYTES = (int) Bytes.valueOf("512m").bytes();
     public static final int CEILING_SIZE = (int) Bytes.valueOf("768m").bytes();
     public static final int MAX_SIZE = 10000;
-	
-	public static void main(String[] args) {
-        MemCacheDaemon<LocalCacheElement> daemon = new MemCacheDaemon<LocalCacheElement>();
+    
+    private MemCacheDaemon<LocalCacheElement> daemon;
+        
+    private MemCacheDaemon<LocalCacheElement> getDaemon (int port) {
+
+        daemon = new MemCacheDaemon<LocalCacheElement>();
         
         CacheStorage<Key, LocalCacheElement> map = ConcurrentLinkedHashMap.create(
         						ConcurrentLinkedHashMap.EvictionPolicy.FIFO, MAX_SIZE, MAX_BYTES);
@@ -33,15 +33,25 @@ public class QuickTest {
         daemon.setCache(new CacheImpl(map));
         daemon.setBinary(false);
         
-        daemon.setAddr(new InetSocketAddress(11211));
+        daemon.setAddr(new InetSocketAddress(port));
         daemon.setVerbose(false);
+        
+        return daemon;
+    }
+    
+	@Test
+	public void upAndDown() {
+        daemon = getDaemon(50);
         
         try {
         	daemon.start();
         } catch (Exception e) {
-        	e.printStackTrace();
+        	fail("Daemon failed to start");
         	return;
         }
+        
+        assertTrue( daemon.isRunning() );
+        
+        daemon.stop();
 	}
-
 }

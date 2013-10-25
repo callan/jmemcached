@@ -16,10 +16,10 @@
 package com.thimbleware.jmemcached;
 
 import com.thimbleware.jmemcached.storage.CacheStorage;
-import org.jboss.netty.buffer.ChannelBuffers;
+
+import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
-
 import java.nio.ByteBuffer;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -59,7 +59,7 @@ public final class CacheImpl extends AbstractCache<LocalCacheElement> implements
         if (time != 0) {
             // block the element and schedule a delete; replace its entry with a blocked element
             LocalCacheElement placeHolder = new LocalCacheElement(key, 0, 0, 0L);
-            placeHolder.setData(ChannelBuffers.buffer(0));
+            placeHolder.setData(Unpooled.buffer(0));
             placeHolder.block(Now() + (long)time);
 
             storage.replace(key, placeHolder);
@@ -235,7 +235,7 @@ public final class CacheImpl extends AbstractCache<LocalCacheElement> implements
      * @inheritDoc
      */
     public void close() throws IOException {
-        scavenger.shutdown();;
+        scavenger.shutdown();
         storage.close();
     }
 
@@ -281,7 +281,6 @@ public final class CacheImpl extends AbstractCache<LocalCacheElement> implements
             storage.remove(toDelete.element.getKey());
         }
     }
-
 
     /**
      * Delayed key blocks get processed occasionally.

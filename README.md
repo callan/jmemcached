@@ -1,4 +1,4 @@
 jmemcached
 ==========
 
-Java-based Memcache Daemon, originally located and written by the author at https://code.google.com/p/jmemcache-daemon/
+Java implementation of the MemcacheD daemon, originally written by TimbleWare

@@ -1,7 +1,8 @@
 package com.thimbleware.jmemcached;
 
 import com.thimbleware.jmemcached.storage.hash.SizedItem;
-import org.jboss.netty.buffer.ChannelBuffer;
+
+import io.netty.buffer.ByteBuf;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -19,9 +20,9 @@ public interface CacheElement extends Serializable, SizedItem {
 
     int getFlags();
 
-    ChannelBuffer getData();
+    ByteBuf getData();
 
-    void setData(ChannelBuffer data);
+    void setData(ByteBuf data);
 
     Key getKey();
 

@@ -15,15 +15,15 @@
  */
 package com.thimbleware.jmemcached;
 
-import com.thimbleware.jmemcached.util.BufferUtils;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.nio.ByteBuffer;
+
+import com.thimbleware.jmemcached.util.BufferUtils;
 
 
 /**
@@ -32,7 +32,7 @@ import java.nio.ByteBuffer;
 public final class LocalCacheElement implements CacheElement, Externalizable {
     private int expire ;
     private int flags;
-    private ChannelBuffer data;
+    private ByteBuf data;
     private Key key;
     private long casUnique = 0L;
     private boolean blocked = false;
@@ -66,9 +66,9 @@ public final class LocalCacheElement implements CacheElement, Externalizable {
     public LocalCacheElement append(LocalCacheElement appendElement) {
         int newLength = size() + appendElement.size();
         LocalCacheElement appendedElement = new LocalCacheElement(getKey(), getFlags(), getExpire(), 0L);
-        ChannelBuffer appended = ChannelBuffers.buffer(newLength);
-        ChannelBuffer existing = getData();
-        ChannelBuffer append = appendElement.getData();
+        ByteBuf appended = Unpooled.buffer(newLength);
+        ByteBuf existing = getData();
+        ByteBuf append = appendElement.getData();
 
         appended.writeBytes(existing);
         appended.writeBytes(append);
@@ -88,9 +88,9 @@ public final class LocalCacheElement implements CacheElement, Externalizable {
         int newLength = size() + prependElement.size();
 
         LocalCacheElement prependedElement = new LocalCacheElement(getKey(), getFlags(), getExpire(), 0L);
-        ChannelBuffer prepended = ChannelBuffers.buffer(newLength);
-        ChannelBuffer prepend = prependElement.getData();
-        ChannelBuffer existing = getData();
+        ByteBuf prepended = Unpooled.buffer(newLength);
+        ByteBuf prepend = prependElement.getData();
+        ByteBuf existing = getData();
 
         prepended.writeBytes(prepend);
         prepended.writeBytes(existing);
@@ -124,7 +124,7 @@ public final class LocalCacheElement implements CacheElement, Externalizable {
 
         } // check for underflow
 
-        ChannelBuffer newData = BufferUtils.itoa(modVal);
+        ByteBuf newData = BufferUtils.itoa(modVal);
 
         LocalCacheElement replace = new LocalCacheElement(getKey(), getFlags(), getExpire(), 0L);
         replace.setData(newData);
@@ -175,9 +175,10 @@ public final class LocalCacheElement implements CacheElement, Externalizable {
         return flags;
     }
 
-    public ChannelBuffer getData() {
+    public ByteBuf getData() {
         data.readerIndex(0);
-        return data;
+        // FIXME this should not have to be a copy, but refCnt -> 0 if it isn't
+        return data.copy();
     }
 
     public Key getKey() {
@@ -206,7 +207,7 @@ public final class LocalCacheElement implements CacheElement, Externalizable {
     }
 
 
-    public void setData(ChannelBuffer data) {
+    public void setData(ByteBuf data) {
         data.readerIndex(0);
         this.data = data;
     }
@@ -220,12 +221,12 @@ public final class LocalCacheElement implements CacheElement, Externalizable {
         byte[] dataArrary = new byte[length];
         while( readSize < length)
             readSize += in.read(dataArrary, readSize, length - readSize);
-        data = ChannelBuffers.wrappedBuffer(dataArrary);
+        data = Unpooled.wrappedBuffer(dataArrary);
 
 
         byte[] keyBytes = new byte[in.readInt()];
         in.read(keyBytes);
-        key = new Key(ChannelBuffers.wrappedBuffer(keyBytes));
+        key = new Key(Unpooled.wrappedBuffer(keyBytes));
         casUnique = in.readLong();
         blocked = in.readBoolean();
         blockedUntil = in.readLong();
@@ -237,8 +238,11 @@ public final class LocalCacheElement implements CacheElement, Externalizable {
         byte[] dataArray = data.copy().array();
         out.writeInt(dataArray.length);
         out.write(dataArray);
-        out.write(key.bytes.capacity());
-        out.write(key.bytes.copy().array());
+        
+        byte[] bytesOut = key.getBytes();
+        out.write(bytesOut.length);
+        out.write(bytesOut);
+        
         out.writeLong(casUnique);
         out.writeBoolean(blocked);
         out.writeLong(blockedUntil);

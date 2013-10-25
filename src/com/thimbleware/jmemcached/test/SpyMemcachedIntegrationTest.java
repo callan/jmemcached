@@ -2,18 +2,24 @@ package com.thimbleware.jmemcached.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.*;
-import java.util.concurrent.Future;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import net.spy.memcached.*;
+import net.spy.memcached.BinaryConnectionFactory;
+import net.spy.memcached.CASResponse;
+import net.spy.memcached.CASValue;
+import net.spy.memcached.MemcachedClient;
 
 import org.junit.After;
 import org.junit.Before;
@@ -31,7 +37,6 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class SpyMemcachedIntegrationTest extends AbstractCacheTest {
 
-
     private MemcachedClient _client;
     private InetSocketAddress address;
 
@@ -48,16 +53,18 @@ public class SpyMemcachedIntegrationTest extends AbstractCacheTest {
         super.setup();
 
         this.address = new InetSocketAddress("localhost", getPort());
-        if (getProtocolMode() == ProtocolMode.BINARY)
+        if (getProtocolMode() == ProtocolMode.BINARY) {
             _client = new MemcachedClient( new BinaryConnectionFactory(), Arrays.asList( address ) );
-        else
+        } else {
             _client = new MemcachedClient( Arrays.asList( address ) );
+        }
     }
 
     @After
     public void tearDown() throws Exception {
-        if (_client != null)
+        if (_client != null) {
             _client.shutdown();
+        }
     }
 
 
@@ -120,12 +127,14 @@ public class SpyMemcachedIntegrationTest extends AbstractCacheTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testBigBinaryObject() throws ExecutionException, InterruptedException {
         Object bigObject = getBigObject();
         Future<Boolean> future = _client.set(KEY, TWO_WEEKS, bigObject);
         assertTrue(future.get() == true);
-        final Map<String, Double> map = (Map<String, Double>)_client.get(KEY);
+        
+        @SuppressWarnings("unchecked")
+		final Map<String, Double> map = (Map<String, Double>)_client.get(KEY);
+        
         for (String key : map.keySet()) {
             Integer kint = Integer.valueOf(key);
             Double val = map.get(key);
@@ -180,7 +189,6 @@ public class SpyMemcachedIntegrationTest extends AbstractCacheTest {
         // wait for all the sets to complete
         for (Future<Boolean> future : futures) {
         	boolean got = future.get(5, TimeUnit.SECONDS);
-        	System.out.println("FUTURE-GOT? " + got);
             assertTrue("future failed", got == true);
         }
 

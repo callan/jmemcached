@@ -1,9 +1,10 @@
 package com.thimbleware.jmemcached.util;
 
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 
 /**
  */
@@ -11,7 +12,7 @@ public class BufferUtils {
 
     final static int [] sizeTable = { 9, 99, 999, 9999, 99999, 999999, 9999999,
             99999999, 999999999, Integer.MAX_VALUE };
-    private static final ChannelBuffer LONG_MIN_VALUE_BYTES = ChannelBuffers.wrappedBuffer("-9223372036854775808".getBytes());
+    private static final ByteBuf LONG_MIN_VALUE_BYTES = Unpooled.wrappedBuffer("-9223372036854775808".getBytes());
 
     // Requires positive x
     static int stringSize(int x) {
@@ -56,7 +57,7 @@ public class BufferUtils {
     } ;
 
 
-    public static int atoi(ChannelBuffer s)
+    public static int atoi(ByteBuf s)
             throws NumberFormatException
     {
         int result = 0;
@@ -101,7 +102,7 @@ public class BufferUtils {
         return negative ? result : -result;
     }
 
-    public static long atol(ChannelBuffer s)
+    public static long atol(ByteBuf s)
             throws NumberFormatException
     {
         long result = 0;
@@ -151,19 +152,19 @@ public class BufferUtils {
      * @param i integer to convert
      * @return byte[] array containing literal ASCII char representation
      */
-    public static ChannelBuffer itoa(int i) {
+    public static ByteBuf itoa(int i) {
         int size = (i < 0) ? stringSize(-i) + 1 : stringSize(i);
-        ChannelBuffer buf = ChannelBuffers.buffer(size);
+        ByteBuf buf = Unpooled.buffer(size);
         getChars(i, size, buf);
         return buf;
     }
 
 
-    public static ChannelBuffer ltoa(long i) {
+    public static ByteBuf ltoa(long i) {
         if (i == Long.MIN_VALUE)
             return LONG_MIN_VALUE_BYTES;
         int size = (i < 0) ? stringSize(-i) + 1 : stringSize(i);
-        ChannelBuffer buf = ChannelBuffers.buffer(size);
+        ByteBuf buf = Unpooled.buffer(size);
         getChars(i, size, buf);
         return buf;
     }
@@ -177,7 +178,7 @@ public class BufferUtils {
      *
      * Will fail if i == Long.MIN_VALUE
      */
-    static void getChars(long i, int index, ChannelBuffer buf) {
+    static void getChars(long i, int index, ByteBuf buf) {
         long q;
         int r;
         int charPos = index;
@@ -225,7 +226,7 @@ public class BufferUtils {
         buf.writerIndex(buf.capacity());
     }
 
-    static void getChars(int i, int index, ChannelBuffer buf) {
+    static void getChars(int i, int index, ByteBuf buf) {
         int q, r;
         int charPos = index;
         byte sign = 0;
@@ -271,4 +272,37 @@ public class BufferUtils {
         return 19;
     }
 
+    public static String ByteBufToHex (ByteBuf in) {
+    	in = in.copy();
+    	in.resetReaderIndex();
+    	final char[] hexArray = "0123456789abcdef".toCharArray();
+    	byte[] inBytes = new byte[in.capacity()];
+    	in.getBytes(0, inBytes);
+    	
+    	char[] out = new char[inBytes.length * 2];
+    	
+    	int v, t, j = 0;
+
+    	final int l = inBytes.length;
+    	
+    	for (; j != l; j++) {
+    		v = (inBytes[j] & 0xFF);
+    		t = j << 1;
+    		
+    		out[t    ] = hexArray[v >>> 4];
+    		out[t + 1] = hexArray[v & 0x0F];
+    	}
+    	
+    	return new String(out);
+    }
+    
+    public static String ByteBufToStr (ByteBuf in) {
+    	String out = in.toString(0, in.capacity(), Charset.defaultCharset());
+    	
+    	out = out.replace('\r', '#');
+    	out = out.replace('\n', '&');
+    	
+    	return out;
+    }
+    
 }

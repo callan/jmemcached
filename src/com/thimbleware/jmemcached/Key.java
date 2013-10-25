@@ -1,7 +1,8 @@
 package com.thimbleware.jmemcached;
 
-import org.jboss.netty.buffer.ChannelBuffer;
+import io.netty.buffer.ByteBuf;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
 
 /**
@@ -9,26 +10,46 @@ import java.util.Arrays;
  *
  * Wraps a byte array with a precomputed hashCode.
  */
-public class Key {
-    public ChannelBuffer bytes;
+public final class Key {
+    private ByteBuf bytes;
+    private byte[] bytesOut;
+    
     private int hashCode;
 
-    public Key(ChannelBuffer bytes) {
-        this.bytes = bytes.copy();
+    public Key(ByteBuf bytes) {
+        this.bytes    = bytes;
         this.hashCode = this.bytes.hashCode();
+        this.convertBytes();
     }
 
+    private void convertBytes () {
+    	bytesOut = new byte[bytes.readableBytes()];
+    	bytes.readBytes(bytesOut);
+    }
+    
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(Object obj) {
+    	if (this == obj) {
+    		return true;
+    	}
+    	
+    	if (obj == null || getClass() != obj.getClass()) {
+    		return false;
+    	}
 
-        Key key1 = (Key) o;
+        final Key ext = (Key) obj;
+        final byte[] extBytes = ext.getBytes();
 
-        bytes.readerIndex(0);
-        key1.bytes.readerIndex(0);
-        if (!bytes.equals(key1.bytes)) return false;
-
+        if (extBytes.length != bytesOut.length) {
+        	return false;
+        }
+        
+        for (int i = 0; i < extBytes.length; i++) {
+        	if (extBytes[i] != this.bytesOut[i]) {
+        		return false;
+        	}
+        }
+        
         return true;
     }
 
@@ -37,5 +58,11 @@ public class Key {
         return hashCode;
     }
 
-
+    public byte[] getBytes () {
+    	return bytesOut;
+    }
+    
+    public String getName () {
+    	return bytes.toString(Charset.defaultCharset());
+    }
 }

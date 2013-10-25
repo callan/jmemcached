@@ -1,28 +1,45 @@
 package com.thimbleware.jmemcached.protocol.binary;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.channel.socket.SocketChannel;
+
 import com.thimbleware.jmemcached.Cache;
 import com.thimbleware.jmemcached.protocol.MemcachedCommandHandler;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.group.DefaultChannelGroup;
+import com.thimbleware.jmemcached.protocol.text.MemcachedPipelineFactory;
 
+public class MemcachedBinaryPipelineFactory extends ChannelInitializer<SocketChannel> {
+    final Logger log = LogManager.getLogger(MemcachedPipelineFactory.class);
 
-public class MemcachedBinaryPipelineFactory implements ChannelPipelineFactory {
-
-    private final MemcachedBinaryCommandDecoder decoder =  new MemcachedBinaryCommandDecoder();
-    private final MemcachedCommandHandler memcachedCommandHandler;
-    private final MemcachedBinaryResponseEncoder memcachedBinaryResponseEncoder = new MemcachedBinaryResponseEncoder();
-
+    private Cache cache;
+    private String version;
+    private boolean verbose;
+    private int idleTime;
+    private DefaultChannelGroup chanGroup;
+    
     public MemcachedBinaryPipelineFactory(Cache cache, String version, boolean verbose, int idleTime, DefaultChannelGroup channelGroup) {
-        memcachedCommandHandler = new MemcachedCommandHandler(cache, version, verbose, idleTime, channelGroup);
+    	this.cache     = cache;
+    	this.version   = version;
+    	this.verbose   = verbose;
+    	this.idleTime  = idleTime;
+    	this.chanGroup = channelGroup;
+    	
+        log.trace("binary constructor");
     }
 
-    public ChannelPipeline getPipeline() throws Exception {
-        return Channels.pipeline(
-                decoder,
-                memcachedCommandHandler,
-                memcachedBinaryResponseEncoder
-        );
+    @Override
+    public void initChannel(SocketChannel ch) throws Exception {
+    	log.trace("binary initChannel");
+    	ChannelPipeline pipeline = ch.pipeline();
+    	
+    	pipeline.addLast("decoder", new MemcachedBinaryCommandDecoder());
+    	pipeline.addLast("handler", new MemcachedCommandHandler(cache, version, verbose, idleTime, chanGroup));
+    	pipeline.addLast("encoder", new MemcachedBinaryResponseEncoder());
+
     }
+    
 }

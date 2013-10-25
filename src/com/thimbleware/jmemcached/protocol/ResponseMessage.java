@@ -12,7 +12,7 @@ import java.util.Map;
  */
 public final class ResponseMessage<CACHE_ELEMENT extends CacheElement> implements Serializable {
 
-    public ResponseMessage(CommandMessage cmd) {
+    public ResponseMessage(CommandMessage<CACHE_ELEMENT> cmd) {
         this.cmd = cmd;
     }
 

@@ -15,12 +15,14 @@
  */
 package com.thimbleware.jmemcached.protocol;
 
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.thimbleware.jmemcached.util.BufferUtils;
 
 /**
  */
@@ -29,18 +31,17 @@ public enum Op {
     INCR, REPLACE, ADD, SET, CAS, STATS, VERSION,
     QUIT, FLUSH_ALL, VERBOSITY;
 
-    private static Map<ChannelBuffer, Op> opsbf = new HashMap<ChannelBuffer, Op>();
+    private static Map<ByteBuf, Op> opsbf = new HashMap<ByteBuf, Op>();
 
     static {
         for (int x = 0 ; x < Op.values().length; x++) {
             byte[] bytes = Op.values()[x].toString().toLowerCase().getBytes();
-            opsbf.put(ChannelBuffers.wrappedBuffer(bytes), Op.values()[x]);
+            opsbf.put(Unpooled.wrappedBuffer(bytes), Op.values()[x]);
         }
     }
 
-
-    public static Op FindOp(ChannelBuffer cmd) {
-        cmd.readerIndex(0);
+    public static Op FindOp(ByteBuf cmd) {
+    	cmd.readerIndex(0);
         return opsbf.get(cmd);
     }
 

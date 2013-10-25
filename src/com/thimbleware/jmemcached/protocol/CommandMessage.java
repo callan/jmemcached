@@ -17,7 +17,8 @@ package com.thimbleware.jmemcached.protocol;
 
 import com.thimbleware.jmemcached.CacheElement;
 import com.thimbleware.jmemcached.Key;
-import org.jboss.netty.buffer.ChannelBuffer;
+
+import io.netty.buffer.ByteBuf;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -46,14 +47,14 @@ public final class CommandMessage<CACHE_ELEMENT extends CacheElement> implements
         element = null;
     }
 
-    public void setKey(ChannelBuffer key) {
+    public void setKey(ByteBuf key) {
         this.keys = new ArrayList<Key>();
         this.keys.add(new Key(key));
     }
 
-    public void setKeys(List<ChannelBuffer> keys) {
+    public void setKeys(List<ByteBuf> keys) {
         this.keys = new ArrayList<Key>(keys.size());
-        for (ChannelBuffer key : keys) {
+        for (ByteBuf key : keys) {
             this.keys.add(new Key(key));
         }
     }

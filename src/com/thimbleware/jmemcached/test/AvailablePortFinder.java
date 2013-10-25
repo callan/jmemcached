@@ -36,7 +36,7 @@ public class AvailablePortFinder {
     /**
      * The minimum number of server port number.
      */
-    public static final int MIN_PORT_NUMBER = 1;
+    public static final int MIN_PORT_NUMBER = 50;
 
     /**
      * The maximum number of server port number.

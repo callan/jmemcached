@@ -15,19 +15,23 @@
  */
 package com.thimbleware.jmemcached;
 
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.group.ChannelGroupFuture;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.util.concurrent.GlobalEventExecutor;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.concurrent.Executors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.channel.group.ChannelGroupFuture;
-import org.jboss.netty.channel.group.DefaultChannelGroup;
-import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import com.thimbleware.jmemcached.protocol.binary.MemcachedBinaryPipelineFactory;
 import com.thimbleware.jmemcached.protocol.text.MemcachedPipelineFactory;
@@ -50,9 +54,11 @@ public class MemCacheDaemon<CACHE_ELEMENT extends CacheElement> {
     private Cache<CACHE_ELEMENT> cache;
 
     private boolean running = false;
-    private ServerSocketChannelFactory channelFactory;
+    private ServerBootstrap bootstrap;
     private DefaultChannelGroup allChannels;
 
+    private EventLoopGroup bossGroup;
+    private EventLoopGroup workGroup;
 
     public MemCacheDaemon() {
     }
@@ -64,60 +70,89 @@ public class MemCacheDaemon<CACHE_ELEMENT extends CacheElement> {
     /**
      * Bind the network connection and start the network processing threads.
      */
-    public void start() {
-        // TODO provide tweakable options here for passing in custom executors.
-        channelFactory =
-                new NioServerSocketChannelFactory(
-                        Executors.newCachedThreadPool(),
-                        Executors.newCachedThreadPool());
+    public void start() throws Exception {
+    	log.info("starting jmemcached");
 
-        allChannels = new DefaultChannelGroup("jmemcachedChannelGroup");
+    	bossGroup = new NioEventLoopGroup();
+    	workGroup = new NioEventLoopGroup();
+    	
+    	log.info("loop groups setup");
+    	
+		allChannels = new DefaultChannelGroup("jmemcached", GlobalEventExecutor.INSTANCE);
+		
+		ChannelInitializer<?> init;
+		
+		if (binary) {
+			init = createMemcachedBinaryPipelineFactory(cache, memcachedVersion, verbose, idleTime, allChannels);
+		} else {
+			init = createMemcachedPipelineFactory(cache, memcachedVersion, verbose, idleTime, 65536, allChannels);
+		}
+		
+		log.info("factory setup: " + ( binary ? "binary" : "plaintext"));
+		
+		bootstrap = new ServerBootstrap();
 
-        ServerBootstrap bootstrap = new ServerBootstrap(channelFactory);
+		log.info("group/channel/childHandler");    		
+		bootstrap.group(bossGroup, workGroup)
+			     .channel(NioServerSocketChannel.class)
+			     .childHandler(init);
 
-        ChannelPipelineFactory pipelineFactory;
-        if (binary)
-            pipelineFactory = createMemcachedBinaryPipelineFactory(cache, memcachedVersion, verbose, idleTime, allChannels);
-        else
-            pipelineFactory = createMemcachedPipelineFactory(cache, memcachedVersion, verbose, idleTime, frameSize, allChannels);
+		log.info("childOptions");
+		bootstrap.childOption(ChannelOption.SO_RCVBUF, 65536)
+			     .childOption(ChannelOption.SO_SNDBUF, 65536);
+		
+		log.info("bind/sync/channel");
+		bootstrap.localAddress(addr);
+		ChannelFuture future = bootstrap.bind(addr);
+		
+		Channel chan = future.syncUninterruptibly().channel();
+		
+		log.info("chan? " + chan.isActive());
+		
+		log.info("add channels");
+		allChannels.add(chan);
+		
+		// This blocks the rest of the method from running until the server stops.
+		// TODO find away around this (as Netty 3.x did this a very different way)
+		// chan.closeFuture().sync();
+		log.info("done");
 
-        bootstrap.setPipelineFactory(pipelineFactory);
-        bootstrap.setOption("sendBufferSize", 65536 );
-        bootstrap.setOption("receiveBufferSize", 65536);
-
-        Channel serverChannel = bootstrap.bind(addr);
-        allChannels.add(serverChannel);
-
-        log.info("Listening on " + String.valueOf(addr.getHostName()) + ":" + addr.getPort());
-
+        log.info("listening on " + String.valueOf(addr.getHostName()) + ":" + addr.getPort());
         running = true;
     }
 
-    protected ChannelPipelineFactory createMemcachedBinaryPipelineFactory(
-            Cache cache, String memcachedVersion, boolean verbose, int idleTime, DefaultChannelGroup allChannels) {
+    protected ChannelInitializer<?> createMemcachedBinaryPipelineFactory(
+            Cache<?> cache, String memcachedVersion, boolean verbose, int idleTime, DefaultChannelGroup allChannels) {
         return new MemcachedBinaryPipelineFactory(cache, memcachedVersion, verbose, idleTime, allChannels);
     }
 
-    protected ChannelPipelineFactory createMemcachedPipelineFactory(
-            Cache cache, String memcachedVersion, boolean verbose, int idleTime, int receiveBufferSize, DefaultChannelGroup allChannels) {
+    protected ChannelInitializer<?> createMemcachedPipelineFactory(
+            Cache<?> cache, String memcachedVersion, boolean verbose, int idleTime, int receiveBufferSize, DefaultChannelGroup allChannels) {
         return new MemcachedPipelineFactory(cache, memcachedVersion, verbose, idleTime, receiveBufferSize, allChannels);
     }
 
     public void stop() {
         log.info("terminating daemon; closing all channels");
 
+        bossGroup.shutdownGracefully();
+        workGroup.shutdownGracefully();        
         ChannelGroupFuture future = allChannels.close();
-        future.awaitUninterruptibly();
-        if (!future.isCompleteSuccess()) {
+        try {
+			future.await(50);
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
+        
+        if ( ! future.isSuccess() ) {
             throw new RuntimeException("failure to complete closing all network channels");
         }
+        
         log.info("channels closed, freeing cache storage");
         try {
             cache.close();
         } catch (IOException e) {
             throw new RuntimeException("exception while closing storage", e);
         }
-        channelFactory.releaseExternalResources();
 
         running = false;
         log.info("successfully shut down");

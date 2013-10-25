@@ -1,10 +1,12 @@
 package com.thimbleware.jmemcached.test;
 
 import com.thimbleware.jmemcached.*;
-import org.jboss.netty.buffer.ChannelBuffers;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import io.netty.buffer.Unpooled;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -43,14 +45,14 @@ public class CacheFIFOTest extends AbstractCacheTest {
 
         // verify that only the last MAX_SIZE items are actually physically in there
         for (int i = 0; i < fillSize; i++) {
-            CacheElement result = daemon.getCache().get(new Key(ChannelBuffers.wrappedBuffer(("" + i).getBytes())))[0];
+            CacheElement result = daemon.getCache().get(new Key(Unpooled.wrappedBuffer(("" + i).getBytes())))[0];
             if (i < MAX_SIZE) {
                 assertTrue(i + "th result absence", result == null);
             } else {
                 assertNotNull(i + "th result should be present", result);
                 assertNotNull(i + "th result's should be present", result.getKey());
-                assertTrue("key of present item should match" , Arrays.equals(("" + i).getBytes(), result.getKey().bytes.copy().array()));
-                assertEquals(ChannelBuffers.wrappedBuffer((i + "x").getBytes()), result.getData());
+                assertTrue("key of present item should match" , Arrays.equals(("" + i).getBytes(), result.getKey().getBytes()));
+                assertEquals(Unpooled.wrappedBuffer((i + "x").getBytes()), result.getData());
             }
         }
         assertEquals("correct number of cache misses", fillSize - MAX_SIZE, daemon.getCache().getGetMisses());
@@ -58,8 +60,8 @@ public class CacheFIFOTest extends AbstractCacheTest {
     }
 
     private LocalCacheElement createElement(String testKey, String testvalue) {
-        LocalCacheElement element = new LocalCacheElement(new Key(ChannelBuffers.wrappedBuffer(testKey.getBytes())), 0, Now() + (1000*60*5), 0L);
-        element.setData(ChannelBuffers.wrappedBuffer(testvalue.getBytes()));
+        LocalCacheElement element = new LocalCacheElement(new Key(Unpooled.wrappedBuffer(testKey.getBytes())), 0, Now() + (1000*60*5), 0L);
+        element.setData(Unpooled.wrappedBuffer(testvalue.getBytes()));
 
         return element;
     }

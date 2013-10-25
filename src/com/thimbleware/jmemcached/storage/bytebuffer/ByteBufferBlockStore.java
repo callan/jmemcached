@@ -1,11 +1,11 @@
 package com.thimbleware.jmemcached.storage.bytebuffer;
 
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.BitSet;
 
 /**
  * Memory mapped block storage mechanism with a free-list maintained by TreeMap
@@ -17,7 +17,7 @@ import java.util.*;
  */
 public class ByteBufferBlockStore {
 
-    protected ChannelBuffer storageBuffer;
+    protected ByteBuf storageBuffer;
 
     private long freeBytes;
 
@@ -60,7 +60,7 @@ public class ByteBufferBlockStore {
      * @throws java.io.IOException thrown on failure to open the store or map the file
      */
     private ByteBufferBlockStore(ByteBuffer storageBuffer, int blockSizeBytes) throws IOException {
-        this.storageBuffer = ChannelBuffers.wrappedBuffer(storageBuffer);
+        this.storageBuffer = Unpooled.wrappedBuffer(storageBuffer);
         this.blockSizeBytes = blockSizeBytes;
         initialize(storageBuffer.capacity());
     }
@@ -144,7 +144,7 @@ public class ByteBufferBlockStore {
      * @param data initial data to place in it
      * @return the region descriptor
      */
-    public Region alloc(int desiredSize, ChannelBuffer data) {
+    public Region alloc(int desiredSize, ByteBuf data) {
         final long desiredBlockSize = roundUp(desiredSize, blockSizeBytes);
         int numBlocks = (int) (desiredBlockSize / blockSizeBytes);
 
@@ -161,7 +161,7 @@ public class ByteBufferBlockStore {
         return new Region(desiredSize, numBlocks, pos);
     }
 
-    public ChannelBuffer get(Region region) {
+    public ByteBuf get(Region region) {
         return storageBuffer.slice(region.startBlock * blockSizeBytes, region.size);
     }
 

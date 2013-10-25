@@ -1,12 +1,7 @@
 package com.thimbleware.jmemcached.storage.bytebuffer;
 
-import com.thimbleware.jmemcached.Key;
-import com.thimbleware.jmemcached.LocalCacheElement;
-import com.thimbleware.jmemcached.storage.CacheStorage;
-import com.thimbleware.jmemcached.storage.hash.ConcurrentLinkedHashMap;
-import com.thimbleware.jmemcached.storage.hash.SizedItem;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -16,6 +11,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import com.thimbleware.jmemcached.Key;
+import com.thimbleware.jmemcached.LocalCacheElement;
+import com.thimbleware.jmemcached.storage.CacheStorage;
+import com.thimbleware.jmemcached.storage.hash.ConcurrentLinkedHashMap;
+import com.thimbleware.jmemcached.storage.hash.SizedItem;
 
 /**
  * Implementation of the concurrent (linked) sized map using the block buffer storage back end.
@@ -66,13 +67,13 @@ public final class BlockStorageCacheStorage implements CacheStorage<Key, LocalCa
             }
         }
 
-        public final ChannelBuffer getData() {
-            ChannelBuffer buffers[] = new ChannelBuffer[regions.length];
+        public final ByteBuf getData() {
+            ByteBuf buffers[] = new ByteBuf[regions.length];
             for (int i = 0; i < regions.length; i++) {
                 final int bucket = buckets[i];
                 buffers[i] = blockStorage[bucket].get(regions[i]);
             }
-            return ChannelBuffers.wrappedBuffer(buffers);
+            return Unpooled.wrappedBuffer(buffers);
         }
 
         public final int size() {
@@ -86,12 +87,12 @@ public final class BlockStorageCacheStorage implements CacheStorage<Key, LocalCa
 
     public BlockStorageCacheStorage(int blockStoreBuckets, int ceilingBytesParam, int blockSizeBytes, long maximumSizeBytes, int maximumItemsVal, BlockStoreFactory factory) {
         this.blockStorage = new ByteBufferBlockStore[blockStoreBuckets];
-        this.storageLock= new ReentrantReadWriteLock[blockStoreBuckets];
+        this.storageLock  = new ReentrantReadWriteLock[blockStoreBuckets];
 
         long bucketSizeBytes = maximumSizeBytes / blockStoreBuckets;
         for (int i = 0; i < blockStoreBuckets; i++) {
             this.blockStorage[i] = factory.manufacture(bucketSizeBytes, blockSizeBytes);
-            this.storageLock[i] = new ReentrantReadWriteLock();
+            this.storageLock[i]  = new ReentrantReadWriteLock();
         }
 
         this.ceilingBytes = new AtomicInteger(ceilingBytesParam);
@@ -239,7 +240,7 @@ public final class BlockStorageCacheStorage implements CacheStorage<Key, LocalCa
 
     public final LocalCacheElement put(final Key key, final LocalCacheElement item) {
         final int numBuckets = numBuckets(item.size(), (int) (this.maximumSizeBytes / this.blockStorage.length));
-        final ChannelBuffer readBuffer = item.getData();
+        final ByteBuf readBuffer = item.getData();
         final Region[] regions = new Region[numBuckets];
         final int buckets[] = new int[numBuckets];
 
