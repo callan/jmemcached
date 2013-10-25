@@ -3,7 +3,7 @@ package com.thimbleware.jmemcached.protocol.binary;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.ByteToMessageDecoder;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ import com.thimbleware.jmemcached.util.BufferUtils;
 /**
  * 
  */
-public class MemcachedBinaryCommandDecoder extends MessageToMessageDecoder<ByteBuf> {
+public class MemcachedBinaryCommandDecoder extends ByteToMessageDecoder {
 	private final Logger log = LogManager.getLogger(MemcachedBinaryCommandDecoder.class);
 	
     public static final Charset USASCII = Charset.forName("US-ASCII");
